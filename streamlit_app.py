@@ -22,20 +22,34 @@ user_input = st.chat_input("Describe your symptoms here...")
 
 # Function to get a response from OpenAI with health advice
 def get_response(prompt):
-    # Here, you may include a more specific prompt or fine-tune the assistant's instructions to provide general remedies
+    # System prompt to keep assistant within the medical domain
+    system_message = {
+        "role": "system",
+        "content": (
+            "You are a helpful and knowledgeable health assistant. "
+            "Only provide information, guidance, or general advice related to medical and health topics. "
+            "If the user asks something outside the medical domain, politely decline to answer by saying something like: "
+            "'I'm here to help with health-related questions. Could you please share a medical concern?'"
+        )
+    }
+
+    # Build the message history with the system prompt at the start
+    messages = [system_message] + [
+        {"role": m["role"], "content": m["content"]}
+        for m in st.session_state.messages
+    ] + [{"role": "user", "content": prompt}]
+
+    # Get the assistant's response
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages
-        ] + [{"role": "user", "content": prompt}]
+        messages=messages
     )
-    # Access the content directly as an attribute
+
     return response.choices[0].message.content
 
 # Process and display response if there's input
 if user_input:
-    # Append user's message
+    # Append user's message to history
     st.session_state.messages.append({"role": "user", "content": user_input})
     with st.chat_message("user"):
         st.markdown(user_input)
@@ -43,7 +57,8 @@ if user_input:
     # Generate assistant's response
     assistant_prompt = f"User has reported the following symptoms: {user_input}. Provide a general remedy or advice."
     assistant_response = get_response(assistant_prompt)
+
+    # Append assistant's message to history
     st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-    
     with st.chat_message("assistant"):
         st.markdown(assistant_response)
